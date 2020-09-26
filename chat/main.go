@@ -2,6 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"github.com/stretchr/gomniauth"
+	"github.com/stretchr/gomniauth/providers/github"
+	"github.com/stretchr/objx"
+	"gopro/config"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -23,14 +28,27 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			template.Must(template.ParseFiles(filepath.Join("chat/template",
 				t.filename)))
 	})
-	_ = t.templ.Execute(w, r)
+	data := map[string]interface{}{
+		"Host": r.Host,
+	}
+	if authCookie, err := r.Cookie("auth"); err == nil {
+		data["Userdata"] = objx.MustFromBase64(authCookie.Value)
+	}
+	fmt.Println(data)
+	_ = t.templ.Execute(w, data)
 }
 
 func main() {
-	var addr = flag.String("addr", ":8888", "アプリケーションのアドレス")
+	var addr = flag.String("addr", ":5002", "アプリケーションのアドレス")
 	flag.Parse()
+	gomniauth.SetSecurityKey(config.Config.GomniauthKey)
+	gomniauth.WithProviders(
+		github.New(config.Config.GithubClientID, config.Config.GithubSecretValue, "http://localhost:5002/auth/callback/github"),
+	)
 	r := newRoom()
-	http.Handle("/", &templateHandler{filename: "chat.html"})
+	http.Handle("/chat", MustAuth(&templateHandler{filename: "chat.html"}))
+	http.Handle("/login", &templateHandler{filename: "login.html"})
+	http.HandleFunc("/auth/", loginHandler)
 	http.Handle("/room", r)
 	go r.run()
 	// Webサーバーを開始します
