@@ -14,6 +14,10 @@ import (
 	"text/template"
 )
 
+const LOCALADDRESS = "http://localhost:5002/"
+const AUTHCALLBACK = "auth/callback/"
+const GITHUB = "github"
+
 // templは1つのテンプレートを表します
 type templateHandler struct {
 	once     sync.Once
@@ -43,7 +47,7 @@ func main() {
 	flag.Parse()
 	gomniauth.SetSecurityKey(config.Config.GomniauthKey)
 	gomniauth.WithProviders(
-		github.New(config.Config.GithubClientID, config.Config.GithubSecretValue, "http://localhost:5002/auth/callback/github"),
+		github.New(config.Config.GithubClientID, config.Config.GithubSecretValue, LOCALADDRESS+AUTHCALLBACK+GITHUB),
 	)
 	r := newRoom()
 	http.Handle("/chat", MustAuth(&templateHandler{filename: "chat.html"}))
